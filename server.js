@@ -153,8 +153,7 @@ ${imageFile ? `Image path: ${imageFile.path}` : ''}
     }
 });
 
-// Start server
-const PORT = process.env.PORT || 3000; // Use Render's port
+// Start server (at the bottom)
 app.listen(PORT, () => {
     console.log(Server running on port ${PORT});
 });
