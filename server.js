@@ -155,5 +155,5 @@ ${imageFile ? `Image path: ${imageFile.path}` : ''}
 
 // Start server 
 app.listen(PORT, () => {
-    console.log( Server running on port $ {PORT});
+    console.log(Server running on port $ {PORT});
 });
