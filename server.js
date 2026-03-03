@@ -1,159 +1,224 @@
-// server.js
-const express = require('express');
-const path = require('path');
-const fs = require('fs');
-const multer = require('multer');
-const nodemailer = require('nodemailer');
-require('dotenv').config();
+const express = require("express");
+const path = require("path");
+const fs = require("fs/promises");
+const fssync = require("fs");
+const multer = require("multer");
+const nodemailer = require("nodemailer");
+const cors = require("cors");
+
+// Load .env locally (Render uses dashboard env vars)
+try {
+  require("dotenv").config();
+} catch {
+  // ignore
+}
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = Number(process.env.PORT) || 3000;
 
-// Ensure uploads directory exists
-const uploadsDir = path.join(__dirname, 'uploads');
-if (!fs.existsSync(uploadsDir)) {
-    fs.mkdirSync(uploadsDir, { recursive: true });
+const DATA_DIR = path.join(__dirname, "data");
+const UPLOADS_DIR = path.join(__dirname, "uploads");
+const ORDERS_FILE = path.join(DATA_DIR, "orders.json");
+
+function ensureDir(dirPath) {
+  if (!fssync.existsSync(dirPath)) {
+    fssync.mkdirSync(dirPath, { recursive: true });
+  }
 }
 
-// Multer setup for file uploads (handles `image` field)
-const storage = multer.diskStorage({
-    destination: function (req, file, cb) {
-        cb(null, uploadsDir);
-    },
-    filename: function (req, file, cb) {
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-        const ext = path.extname(file.originalname);
-        cb(null, file.fieldname + '-' + uniqueSuffix + ext);
-    }
-});
-const upload = multer({ storage });
+ensureDir(DATA_DIR);
+ensureDir(UPLOADS_DIR);
 
-// Parse URL-encoded and JSON bodies
+app.use(
+  cors({
+    origin: true,
+    credentials: false,
+  })
+);
+
+app.use(express.json({ limit: "2mb" }));
 app.use(express.urlencoded({ extended: true }));
-app.use(express.json());
 
-// Nodemailer setup (configure via .env)
-const transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST,          // e.g. "smtp.gmail.com"
-    port: Number(process.env.SMTP_PORT),  // e.g. 587
-    secure: process.env.SMTP_SECURE === 'true', // true for 465, false for 587
-    auth: {
-        user: process.env.SMTP_USER,      // your SMTP username/email
-        pass: process.env.SMTP_PASS       // your SMTP password/app password
-    }
+// Optional: expose uploaded images (useful for debugging/admin review)
+app.use("/uploads", express.static(UPLOADS_DIR));
+
+app.get("/health", (_req, res) => {
+  res.status(200).json({ ok: true });
 });
 
-// Helper: append order to JSON file
-const ORDERS_FILE = path.join(__dirname, 'orders.json');
-function saveOrder(order) {
-    let data = [];
-    if (fs.existsSync(ORDERS_FILE)) {
-        try {
-            const raw = fs.readFileSync(ORDERS_FILE, 'utf8');
-            if (raw.trim()) {
-                data = JSON.parse(raw);
-            }
-        } catch (err) {
-            console.error('Error reading existing orders.json:', err);
-        }
-    }
-    data.push(order);
-    fs.writeFileSync(ORDERS_FILE, JSON.stringify(data, null, 2), 'utf8');
+const storage = multer.diskStorage({
+  destination: (_req, _file, cb) => cb(null, UPLOADS_DIR),
+  filename: (_req, file, cb) => {
+    const safeBase = path
+      .basename(file.originalname)
+      .replace(/[^\w.\- ]+/g, "")
+      .replace(/\s+/g, "-");
+    const ext = path.extname(safeBase) || "";
+    const base = ext ? safeBase.slice(0, -ext.length) : safeBase;
+    const unique = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
+    cb(null, `${file.fieldname}-${base || "upload"}-${unique}${ext}`);
+  },
+});
+
+const upload = multer({
+  storage,
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
+  fileFilter: (_req, file, cb) => {
+    // allow common image types; your field name must be `image`
+    const ok =
+      file.mimetype === "image/jpeg" ||
+      file.mimetype === "image/png" ||
+      file.mimetype === "image/webp" ||
+      file.mimetype === "image/gif";
+    cb(ok ? null : new Error("Only image uploads are allowed."), ok);
+  },
+});
+
+async function readOrders() {
+  try {
+    const raw = await fs.readFile(ORDERS_FILE, "utf8");
+    if (!raw.trim()) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (err) {
+    if (err && err.code === "ENOENT") return [];
+    // If JSON got corrupted, don’t crash the server
+    return [];
+  }
 }
 
-// POST route that matches your form (change path if you want)
-app.post('/submit-order', upload.single('image'), async (req, res) => {
+async function writeOrders(orders) {
+  const tmp = `${ORDERS_FILE}.tmp`;
+  await fs.writeFile(tmp, JSON.stringify(orders, null, 2), "utf8");
+  await fs.rename(tmp, ORDERS_FILE);
+}
+
+function smtpConfigured() {
+  return Boolean(
+    process.env.SMTP_HOST &&
+      process.env.SMTP_PORT &&
+      process.env.SMTP_USER &&
+      process.env.SMTP_PASS
+  );
+}
+
+async function sendAdminEmail(order) {
+  // Don’t crash the app if SMTP isn’t set (common on first deploy)
+  if (!smtpConfigured()) {
+    return { sent: false, reason: "SMTP not configured" };
+  }
+
+  const transporter = nodemailer.createTransport({
+    host: process.env.SMTP_HOST,
+    port: Number(process.env.SMTP_PORT),
+    secure: String(process.env.SMTP_SECURE).toLowerCase() === "true", // true for 465
+    auth: {
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASS,
+    },
+  });
+
+  const toArray = (v) => (v == null ? [] : Array.isArray(v) ? v : [v]);
+
+  const adminEmail = process.env.ADMIN_EMAIL || process.env.SMTP_USER;
+  const subject = `New order form submission: ${order.name || "Unknown"}`;
+
+  const text = [
+    "New fashion design submission",
+    "",
+    `Name: ${order.name || ""}`,
+    `Email: ${order.email || ""}`,
+    `Measurement: ${order.measurement || ""}`,
+    "",
+    `Gallery: ${toArray(order.gallery).join(", ") || ""}`,
+    `Design: ${order.design || ""}`,
+    `Fabrics: ${toArray(order.fabrics).join(", ") || ""}`,
+    "",
+    `Style1: ${order.style1 || ""}`,
+    `Style2: ${order.style2 || ""}`,
+    "",
+    "Description:",
+    `${order.description || ""}`,
+    "",
+    `Image uploaded: ${order.image ? "Yes" : "No"}`,
+    order.image ? `Image filename: ${order.image.fileName}` : "",
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  await transporter.sendMail({
+    from: process.env.EMAIL_FROM || process.env.SMTP_USER,
+    to: adminEmail,
+    subject,
+    text,
+  });
+
+  return { sent: true };
+}
+
+// IMPORTANT: field names match your form EXACTLY:
+// name, email, measurement, gallery, design, fabrics, description, image, style1, style2
+app.post("/submit-order", upload.single("image"), async (req, res) => {
+  try {
+    const {
+      name,
+      email,
+      measurement,
+      gallery,
+      design,
+      fabrics,
+      description,
+      style1,
+      style2,
+    } = req.body;
+
+    const toArray = (v) => (v == null ? [] : Array.isArray(v) ? v : [v]);
+
+    const file = req.file || null;
+    const order = {
+      id: `ord_${Date.now()}_${Math.round(Math.random() * 1e9)}`,
+      name: name ?? "",
+      email: email ?? "",
+      measurement: measurement ?? "",
+      gallery: toArray(gallery),
+      design: design ?? "",
+      fabrics: toArray(fabrics),
+      description: description ?? "",
+      style1: style1 ?? "",
+      style2: style2 ?? "",
+      image: file
+        ? {
+            originalName: file.originalname,
+            fileName: file.filename,
+            mimeType: file.mimetype,
+            size: file.size,
+            urlPath: `/uploads/${file.filename}`,
+          }
+        : null,
+      createdAt: new Date().toISOString(),
+    };
+
+    const orders = await readOrders();
+    orders.push(order);
+    await writeOrders(orders);
+
+    // Email is best-effort; even if it fails, the order is already saved
     try {
-        // Text fields – names MUST match your form exactly
-        const {
-            name,
-            email,
-            measurement,
-            gallery,     // can be string or array depending on your form
-            design,
-            fabrics,     // can be string or array
-            description,
-            style1,
-            style2
-        } = req.body;
-
-        // Uploaded file (may be undefined if user skipped image)
-        const imageFile = req.file || null;
-
-        // Normalize possible multi-select fields to arrays
-        const toArray = (value) =>
-            value == null
-                ? []
-                : Array.isArray(value)
-                ? value
-                : [value];
-
-        const order = {
-            name,
-            email,
-            measurement,
-            gallery: toArray(gallery),
-            design,
-            fabrics: toArray(fabrics),
-            description,
-            style1,
-            style2,
-            image: imageFile
-                ? {
-                      originalName: imageFile.originalname,
-                      fileName: imageFile.filename,
-                      mimeType: imageFile.mimetype,
-                      size: imageFile.size,
-                      path: imageFile.path
-                  }
-                : null,
-            createdAt: new Date().toISOString()
-        };
-
-        // 1) Save to JSON "database"
-        saveOrder(order);
-
-        // 2) Send email notification
-        const adminEmail = process.env.ADMIN_EMAIL || process.env.SMTP_USER;
-        const subject = `New Fashion Design Order from ${name || 'Unknown'}`;
-
-        const textBody = `
-New fashion design submission:
-
-Name: ${name || ''}
-Email: ${email || ''}
-Measurement: ${measurement || ''}
-
-Gallery selection: ${toArray(gallery).join(', ') || 'None'}
-Design: ${design || ''}
-Fabrics: ${toArray(fabrics).join(', ') || 'None'}
-
-Style 1: ${style1 || ''}
-Style 2: ${style2 || ''}
-
-Description:
-${description || ''}
-
-Image uploaded: ${imageFile ? 'Yes' : 'No'}
-${imageFile ? `Image path: ${imageFile.path}` : ''}
-        `.trim();
-
-        await transporter.sendMail({
-            from: `"Fashion Website" <${process.env.SMTP_USER}>`,
-            to: adminEmail,
-            subject,
-            text: textBody
-        });
-
-        // 3) Respond to the browser
-        res.status(200).json({ success: true, message: 'Order received successfully.' });
-    } catch (err) {
-        console.error('Error handling submission:', err);
-        res.status(500).json({ success: false, message: 'Server error processing the form.' });
+      await sendAdminEmail(order);
+    } catch (emailErr) {
+      // Don’t fail the request for email issues
+      console.error("Email send failed:", emailErr?.message || emailErr);
     }
+
+    res.status(200).json({ success: true, orderId: order.id });
+  } catch (err) {
+    console.error("Submission failed:", err);
+    const message =
+      err && err.message ? err.message : "Server error processing submission";
+    res.status(500).json({ success: false, message });
+  }
 });
 
-// Start server 
 app.listen(PORT, () => {
-    console.log(Server running on port ${PORT});
+  console.log(`Backend running on port ${PORT}`);
 });
