@@ -55,8 +55,8 @@ const storage = multer.diskStorage({
       .replace(/\s+/g, "-");
     const ext = path.extname(safeBase) || "";
     const base = ext ? safeBase.slice(0, -ext.length) : safeBase;
-    const unique = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
-    cb(null, `${file.fieldname}-${base || "upload"}-${unique}${ext}`);
+    const unique = ${Date.now()}-${Math.round(Math.random() * 1e9)};
+    cb(null, ${file.fieldname}-${base || "upload"}-${unique}${ext});
   },
 });
 
@@ -64,7 +64,7 @@ const upload = multer({
   storage,
   limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
   fileFilter: (_req, file, cb) => {
-    // allow common image types; your field name must be `image`
+    // allow common image types; your field name must be image
     const ok =
       file.mimetype === "image/jpeg" ||
       file.mimetype === "image/png" ||
@@ -98,7 +98,7 @@ async function sendAdminEmail(order) {
   ${order.description || ""},
   "",
   Image uploaded: ${order.image ? "Yes" : "No"},
-  ${order.image ? `Image filename: ${order.image.fileName} : ""}`
+  ${order.image ? Image filename: ${order.image.fileName} : ""}
 ].filter(Boolean).join("\n");
 
     const res = await fetch("https://api.resend.com/emails", {
@@ -147,7 +147,7 @@ app.post("/submit-order", upload.single("image"), async (req, res) => {
 
     const file = req.file || null;
     const order = {
-      id: `ord_${Date.now()}_${Math.round(Math.random() * 1e9)}`,
+      id: ord_${Date.now()}_${Math.round(Math.random() * 1e9)},
       name: name ?? "",
       email: email ?? "",
       measurement: measurement ?? "",
@@ -163,7 +163,7 @@ app.post("/submit-order", upload.single("image"), async (req, res) => {
             fileName: file.filename,
             mimeType: file.mimetype,
             size: file.size,
-            urlPath: `/uploads/${file.filename}`,
+            urlPath: /uploads/${file.filename},
           }
         : null,
       createdAt: new Date().toISOString(),
@@ -188,5 +188,5 @@ sendAdminEmail(order).catch((emailErr) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`Backend running on port ${PORT}`);
+  console.log(Backend running on port ${PORT});
 });
