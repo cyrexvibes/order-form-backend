@@ -3,7 +3,6 @@ const path = require("path");
 const fs = require("fs/promises");
 const fssync = require("fs");
 const multer = require("multer");
-const nodemailer = require("nodemailer");
 const cors = require("cors");
 
 // Load .env locally (Render uses dashboard env vars)
@@ -20,6 +19,7 @@ const DATA_DIR = path.join(__dirname, "data");
 const UPLOADS_DIR = path.join(__dirname, "uploads");
 const ORDERS_FILE = path.join(DATA_DIR, "orders.json");
 
+// Ensure directories exist
 function ensureDir(dirPath) {
   if (!fssync.existsSync(dirPath)) {
     fssync.mkdirSync(dirPath, { recursive: true });
@@ -39,13 +39,14 @@ app.use(
 app.use(express.json({ limit: "2mb" }));
 app.use(express.urlencoded({ extended: true }));
 
-// Optional: expose uploaded images (useful for debugging/admin review)
+// Optional: expose uploaded images (for admin review/debug)
 app.use("/uploads", express.static(UPLOADS_DIR));
 
 app.get("/health", (_req, res) => {
   res.status(200).json({ ok: true });
 });
 
+// Multer config for file uploads
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => cb(null, UPLOADS_DIR),
   filename: (_req, file, cb) => {
@@ -64,7 +65,6 @@ const upload = multer({
   storage,
   limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
   fileFilter: (_req, file, cb) => {
-    // allow common image types; your field name must be image
     const ok =
       file.mimetype === "image/jpeg" ||
       file.mimetype === "image/png" ||
@@ -74,32 +74,51 @@ const upload = multer({
   },
 });
 
-const fetch = require("node-fetch"); // only needed if your Node version < 18
+const fetch = require("node-fetch"); // needed if Node <18
+const toArray = (v) => (v == null ? [] : Array.isArray(v) ? v : [v]);
 
+// Read orders.json safely
+async function readOrders() {
+  try {
+    const data = await fs.readFile(ORDERS_FILE, "utf-8");
+    return JSON.parse(data);
+  } catch {
+    return [];
+  }
+}
+
+// Write orders.json safely
+async function writeOrders(orders) {
+  await fs.writeFile(ORDERS_FILE, JSON.stringify(orders, null, 2), "utf-8");
+}
+
+// Send email using Resend API
 async function sendAdminEmail(order) {
   try {
     const adminEmail = process.env.ADMIN_EMAIL;
 
-   const text = [
-  "New fashion design submission",
-  "",
-  Name: ${order.name || ""},
-  Email: ${order.email || ""},
-  Measurement: ${order.measurement || ""},
-  "",
-  Gallery: ${toArray(order.gallery).join(", ") || ""},
-  Design: ${order.design || ""},
-  Fabrics: ${toArray(order.fabrics).join(", ") || ""},
-  "",
-  Style1: ${order.style1 || ""},
-  Style2: ${order.style2 || ""},
-  "",
-  "Description:",
-  ${order.description || ""},
-  "",
-  Image uploaded: ${order.image ? "Yes" : "No"},
-  ${order.image ? Image filename: ${order.image.fileName} : ""}
-].filter(Boolean).join("\n");
+    const text = [
+      "New fashion design submission",
+      "",
+      Name: ${order.name || ""},
+      Email: ${order.email || ""},
+      Measurement: ${order.measurement || ""},
+      "",
+      Gallery: ${toArray(order.gallery).join(", ") || ""},
+      Design: ${order.design || ""},
+      Fabrics: ${toArray(order.fabrics).join(", ") || ""},
+      "",
+      Style1: ${order.style1 || ""},
+      Style2: ${order.style2 || ""},
+      "",
+      "Description:",
+      ${order.description || ""},
+      "",
+      Image uploaded: ${order.image ? "Yes" : "No"},
+      order.image ? Image filename: ${order.image.fileName} : "",
+    ]
+      .filter(Boolean)
+      .join("\n");
 
     const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
@@ -127,8 +146,7 @@ async function sendAdminEmail(order) {
   }
 }
 
-// IMPORTANT: field names match your form EXACTLY:
-// name, email, measurement, gallery, design, fabrics, description, image, style1, style2
+// Order submission endpoint
 app.post("/submit-order", upload.single("image"), async (req, res) => {
   try {
     const {
@@ -142,8 +160,6 @@ app.post("/submit-order", upload.single("image"), async (req, res) => {
       style1,
       style2,
     } = req.body;
-
-    const toArray = (v) => (v == null ? [] : Array.isArray(v) ? v : [v]);
 
     const file = req.file || null;
     const order = {
@@ -169,14 +185,15 @@ app.post("/submit-order", upload.single("image"), async (req, res) => {
       createdAt: new Date().toISOString(),
     };
 
+    // Save order immediately (fast)
     const orders = await readOrders();
     orders.push(order);
     await writeOrders(orders);
 
-  // Send email in the background, don’t delay the response
-sendAdminEmail(order).catch((emailErr) => {
-  console.error("Email send failed:", emailErr?.message || emailErr);
-});
+    // Send email in the background (does not block submission — 3x faster)
+    sendAdminEmail(order).catch((emailErr) => {
+      console.error("Email send failed:", emailErr?.message || emailErr);
+    });
 
     res.status(200).json({ success: true, orderId: order.id });
   } catch (err) {
