@@ -80,21 +80,26 @@ async function sendAdminEmail(order) {
   try {
     const adminEmail = process.env.ADMIN_EMAIL;
 
-    const text = `
-New fashion order submission
-
-Name: ${order.name || ""}
-Email: ${order.email || ""}
-Measurement: ${order.measurement || ""}
-Gallery: ${(order.gallery || []).join(", ")}
-Design: ${order.design || ""}
-Fabrics: ${(order.fabrics || []).join(", ")}
-Style1: ${order.style1 ?? ""}
-Style2: ${order.style2 ?? ""}
-Description: ${order.description ?? ""}
-Image uploaded: ${order.image ? "Yes" : "No"}
-${order.image ? Image filename: ${order.image.fileName} : ""}
-`;
+   const text = [
+  "New fashion design submission",
+  "",
+  Name: ${order.name || ""},
+  Email: ${order.email || ""},
+  Measurement: ${order.measurement || ""},
+  "",
+  Gallery: ${toArray(order.gallery).join(", ") || ""},
+  Design: ${order.design || ""},
+  Fabrics: ${toArray(order.fabrics).join(", ") || ""},
+  "",
+  Style1: ${order.style1 || ""},
+  Style2: ${order.style2 || ""},
+  "",
+  "Description:",
+  ${order.description || ""},
+  "",
+  Image uploaded: ${order.image ? "Yes" : "No"},
+  ${order.image ? `Image filename: ${order.image.fileName} : ""}`
+].filter(Boolean).join("\n");
 
     const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
