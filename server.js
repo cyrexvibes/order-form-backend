@@ -202,13 +202,10 @@ app.post("/submit-order", upload.single("image"), async (req, res) => {
     orders.push(order);
     await writeOrders(orders);
 
-    // Email is best-effort; even if it fails, the order is already saved
-    try {
-      await sendAdminEmail(order);
-    } catch (emailErr) {
-      // Don’t fail the request for email issues
-      console.error("Email send failed:", emailErr?.message || emailErr);
-    }
+  // Send email in the background, don’t delay the response
+sendAdminEmail(order).catch((emailErr) => {
+  console.error("Email send failed:", emailErr?.message || emailErr);
+});
 
     res.status(200).json({ success: true, orderId: order.id });
   } catch (err) {
