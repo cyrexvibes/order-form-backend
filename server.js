@@ -74,86 +74,52 @@ const upload = multer({
   },
 });
 
-async function readOrders() {
-  try {
-    const raw = await fs.readFile(ORDERS_FILE, "utf8");
-    if (!raw.trim()) return [];
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch (err) {
-    if (err && err.code === "ENOENT") return [];
-    // If JSON got corrupted, don’t crash the server
-    return [];
-  }
-}
-
-async function writeOrders(orders) {
-  const tmp = `${ORDERS_FILE}.tmp`;
-  await fs.writeFile(tmp, JSON.stringify(orders, null, 2), "utf8");
-  await fs.rename(tmp, ORDERS_FILE);
-}
-
-function smtpConfigured() {
-  return Boolean(
-    process.env.SMTP_HOST &&
-      process.env.SMTP_PORT &&
-      process.env.SMTP_USER &&
-      process.env.SMTP_PASS
-  );
-}
+const fetch = require("node-fetch"); // only needed if your Node version < 18
 
 async function sendAdminEmail(order) {
-  // Don’t crash the app if SMTP isn’t set (common on first deploy)
-  if (!smtpConfigured()) {
-    return { sent: false, reason: "SMTP not configured" };
+  try {
+    const adminEmail = process.env.ADMIN_EMAIL;
+
+    const text = `
+New fashion order submission
+
+Name: ${order.name || ""}
+Email: ${order.email || ""}
+Measurement: ${order.measurement || ""}
+Gallery: ${(order.gallery || []).join(", ")}
+Design: ${order.design || ""}
+Fabrics: ${(order.fabrics || []).join(", ")}
+Style1: ${order.style1 ?? ""}
+Style2: ${order.style2 ?? ""}
+Description: ${order.description ?? ""}
+Image uploaded: ${order.image ? "Yes" : "No"}
+${order.image ? Image filename: ${order.image.fileName} : ""}
+`;
+
+    const res = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: Bearer ${process.env.RESEND_API_KEY},
+      },
+      body: JSON.stringify({
+        from: adminEmail,
+        to: adminEmail,
+        subject: New order form submission: ${order.name || "Unknown"},
+        text,
+      }),
+    });
+
+    if (!res.ok) {
+      const errorText = await res.text();
+      throw new Error(Resend API error: ${res.status} ${errorText});
+    }
+
+    return { sent: true };
+  } catch (err) {
+    console.error("Resend email failed:", err);
+    return { sent: false, reason: err.message };
   }
-
-  const transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
-    port: Number(process.env.SMTP_PORT),
-    secure: String(process.env.SMTP_SECURE).toLowerCase() === "true", // true for 465
-    auth: {
-      user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASS,
-    },
-  });
-
-  const toArray = (v) => (v == null ? [] : Array.isArray(v) ? v : [v]);
-
-  const adminEmail = process.env.ADMIN_EMAIL || process.env.SMTP_USER;
-  const subject = `New order form submission: ${order.name || "Unknown"}`;
-
-  const text = [
-    "New fashion design submission",
-    "",
-    `Name: ${order.name || ""}`,
-    `Email: ${order.email || ""}`,
-    `Measurement: ${order.measurement || ""}`,
-    "",
-    `Gallery: ${toArray(order.gallery).join(", ") || ""}`,
-    `Design: ${order.design || ""}`,
-    `Fabrics: ${toArray(order.fabrics).join(", ") || ""}`,
-    "",
-    `Style1: ${order.style1 || ""}`,
-    `Style2: ${order.style2 || ""}`,
-    "",
-    "Description:",
-    `${order.description || ""}`,
-    "",
-    `Image uploaded: ${order.image ? "Yes" : "No"}`,
-    order.image ? `Image filename: ${order.image.fileName}` : "",
-  ]
-    .filter(Boolean)
-    .join("\n");
-
-  await transporter.sendMail({
-    from: process.env.EMAIL_FROM || process.env.SMTP_USER,
-    to: adminEmail,
-    subject,
-    text,
-  });
-
-  return { sent: true };
 }
 
 // IMPORTANT: field names match your form EXACTLY:
