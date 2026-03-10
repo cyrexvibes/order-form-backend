@@ -74,7 +74,6 @@ const upload = multer({
   },
 });
 
-const fetch = require("node-fetch"); // needed if Node <18
 const toArray = (v) => (v == null ? [] : Array.isArray(v) ? v : [v]);
 
 // Read orders.json safely
