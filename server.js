@@ -127,7 +127,7 @@ async function sendAdminEmail(order) {
       },
       body: JSON.stringify({
         from: "Orders-onboarding@resend.dev",
-        to: "mosesbenjamin1985@gmail.com"
+        to: "mosesbenjamin1985@gmail.com",
         subject: `New order form submission: ${order.name || "Unknown"}`,
         text,
       }),
