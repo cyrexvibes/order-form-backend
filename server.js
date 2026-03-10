@@ -205,5 +205,5 @@ app.post("/submit-order", upload.single("image"), async (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`ackend running on port ${PORT}`);
+  console.log(`Backend running on port ${PORT}`);
 });
