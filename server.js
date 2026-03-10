@@ -126,8 +126,8 @@ async function sendAdminEmail(order) {
         Authorization: 'Bearer ${process.env.RESEND_API_KEY}',
       },
       body: JSON.stringify({
-        from: "Orders <onboarding@resend.dev">,
-        to: adminEmail,
+        from: "Orders-onboarding@resend.dev">,
+        to: process.env.ADMIN_Email,
         subject: `New order form submission: ${order.name || "Unknown"}`,
         text,
       }),
