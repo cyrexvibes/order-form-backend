@@ -11,6 +11,8 @@ try {
 } catch {
   // ignore
 }
+// Debug: check which API key server is using
+console.log("Using API key:", process.env.RESEND_API_KEY);
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
