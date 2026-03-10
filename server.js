@@ -56,8 +56,8 @@ const storage = multer.diskStorage({
       .replace(/\s+/g, "-");
     const ext = path.extname(safeBase) || "";
     const base = ext ? safeBase.slice(0, -ext.length) : safeBase;
-    const unique = ${Date.now()}-${Math.round(Math.random() * 1e9)};
-    cb(null, ${file.fieldname}-${base || "upload"}-${unique}${ext});
+    const unique = '${Date.now()}-${Math.round(Math.random() * 1e9)}';
+    cb(null, '${file.fieldname}-${base || "upload"}-${unique}${ext}');
   },
 });
 
@@ -100,22 +100,22 @@ async function sendAdminEmail(order) {
     const text = [
       "New fashion design submission",
       "",
-      Name: ${order.name || ""},
-      Email: ${order.email || ""},
-      Measurement: ${order.measurement || ""},
+      'Name: ${order.name || ""}',
+      'Email: ${order.email || ""}',
+      'Measurement: ${order.measurement || ""}',
       "",
-      Gallery: ${toArray(order.gallery).join(", ") || ""},
-      Design: ${order.design || ""},
-      Fabrics: ${toArray(order.fabrics).join(", ") || ""},
+      'Gallery: ${toArray(order.gallery).join(", ") || ""}',
+      'Design: ${order.design || ""}',
+      'Fabrics: ${toArray(order.fabrics).join(", ") || ""}',
       "",
-      Style1: ${order.style1 || ""},
-      Style2: ${order.style2 || ""},
+      'Style1: ${order.style1 || ""}',
+      'Style2: ${order.style2 || ""}',
       "",
       "Description:",
-      ${order.description || ""},
+      '${order.description || ""}',
       "",
-      Image uploaded: ${order.image ? "Yes" : "No"},
-      order.image ? Image filename: ${order.image.fileName} : "",
+      'Image uploaded: ${order.image ? "Yes" : "No"}',
+      order.image ? 'Image filename: ${order.image.fileName}' : "",
     ]
       .filter(Boolean)
       .join("\n");
@@ -124,19 +124,19 @@ async function sendAdminEmail(order) {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: Bearer ${process.env.RESEND_API_KEY},
+        Authorization: 'Bearer ${process.env.RESEND_API_KEY}',
       },
       body: JSON.stringify({
         from: adminEmail,
         to: adminEmail,
-        subject: New order form submission: ${order.name || "Unknown"},
+        subject: 'New order form submission: ${order.name || "Unknown"}',
         text,
       }),
     });
 
     if (!res.ok) {
       const errorText = await res.text();
-      throw new Error(Resend API error: ${res.status} ${errorText});
+      throw new Error('Resend API error: ${res.status} ${errorText}');
     }
 
     return { sent: true };
@@ -163,7 +163,7 @@ app.post("/submit-order", upload.single("image"), async (req, res) => {
 
     const file = req.file || null;
     const order = {
-      id: ord_${Date.now()}_${Math.round(Math.random() * 1e9)},
+      id: 'ord_${Date.now()}_${Math.round(Math.random() * 1e9)}',
       name: name ?? "",
       email: email ?? "",
       measurement: measurement ?? "",
@@ -179,7 +179,7 @@ app.post("/submit-order", upload.single("image"), async (req, res) => {
             fileName: file.filename,
             mimeType: file.mimetype,
             size: file.size,
-            urlPath: /uploads/${file.filename},
+            urlPath: '/uploads/${file.filename}',
           }
         : null,
       createdAt: new Date().toISOString(),
