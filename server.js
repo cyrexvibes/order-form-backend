@@ -4,7 +4,7 @@ const fs = require("fs/promises");
 const fssync = require("fs");
 const multer = require("multer");
 const cors = require("cors");
-
+const baseUrl = process.env.BASE_URL || "https://order-form-backend-cm2i.onrender.com";
 // Load .env locally (Render uses dashboard env vars)
 try {
   require("dotenv").config();
