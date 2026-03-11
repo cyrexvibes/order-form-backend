@@ -97,32 +97,33 @@ async function writeOrders(orders) {
 async function sendAdminEmail(order) {
   try {
     const adminEmail = process.env.ADMIN_EMAIL;
-    const baseurl= "https://mercestyles.infinityfree.me" // replace with your actual domain
+
+    const imageLink = order.image
+      ? ${baseUrl}${order.image.urlPath}
+      : "No image uploaded";
 
     const text = [
       "New fashion design submission",
       "",
-      `Name: ${order.name || ""}`,
-      `Email: ${order.email || ""}`,
-      `Measurement: ${order.measurement || ""}`,
+      Name: ${order.name || ""},
+      Email: ${order.email || ""},
+      Measurement: ${order.measurement || ""},
       "",
-      `Design: ${order.design || ""}`,
-      `Style1: ${order.style1 || ""}`,
-      `Style2: ${order.style2 || ""}`,
+      Design: ${order.design || ""},
+      Style1: ${order.style1 || ""},
+      Style2: ${order.style2 || ""},
       "",
-       "Gallery images:",
-      ...(toArray(order.gallery).map(f => `${baseUrl}${f}`)), // clickable links
+      "Gallery images:",
+      ...(toArray(order.gallery).map((f) => ${baseUrl}${f})),
       "",
       "Fabrics images:",
-      ...(toArray(order.fabrics).map(f => `${baseUrl}${f}`)), // clickable links
+      ...(toArray(order.fabrics).map((f) => ${baseUrl}${f})),
+      "",
+      Image uploaded: ${imageLink},
       "",
       "Description:",
-      `${order.description || ""}`,
-      "",
-      const imageLink = order.image
-  ? `${baseUrl}${order.image.urlPath}`
-  : "No image uploaded";
-   
+      ${order.description || ""},
+    ]
       .filter(Boolean)
       .join("\n");
 
@@ -130,19 +131,19 @@ async function sendAdminEmail(order) {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+        Authorization: Bearer ${process.env.RESEND_API_KEY},
       },
       body: JSON.stringify({
         from: "Orders-onboarding@resend.dev",
         to: adminEmail,
-        subject: `New order form submission: ${order.name || "Unknown"}`,
+        subject: New order form submission: ${order.name || "Unknown"},
         text,
       }),
     });
 
     if (!res.ok) {
       const errorText = await res.text();
-      throw new Error(`Resend API error: ${res.status} ${errorText}`);
+      throw new Error(Resend API error: ${res.status} ${errorText});
     }
 
     return { sent: true };
@@ -151,6 +152,7 @@ async function sendAdminEmail(order) {
     return { sent: false, reason: err.message };
   }
 }
+
 
 // Order submission endpoint
 app.post("/submit-order", upload.single("image"), async (req, res) => {
