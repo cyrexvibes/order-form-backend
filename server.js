@@ -97,6 +97,7 @@ async function writeOrders(orders) {
 async function sendAdminEmail(order) {
   try {
     const adminEmail = process.env.ADMIN_EMAIL;
+    const baseurl= "https://mercestyles.infinityfree.me" // replace with your actual domain
 
     const text = [
       "New fashion design submission",
@@ -105,18 +106,21 @@ async function sendAdminEmail(order) {
       `Email: ${order.email || ""}`,
       `Measurement: ${order.measurement || ""}`,
       "",
-      `Gallery: ${toArray(order.gallery).join(", ") || ""}`,
       `Design: ${order.design || ""}`,
-      `Fabrics: ${toArray(order.fabrics).join(", ") || ""}`,
-      "",
       `Style1: ${order.style1 || ""}`,
       `Style2: ${order.style2 || ""}`,
+      "",
+       "Gallery images:",
+      ...(toArray(order.gallery).map(f => `${baseUrl}${f}`)), // clickable links
+      "",
+      "Fabrics images:",
+      ...(toArray(order.fabrics).map(f => `${baseUrl}${f}`)), // clickable links
       "",
       "Description:",
       `${order.description || ""}`,
       "",
       `Image uploaded: ${order.image ? "Yes" : "No"}`,
-      order.image ? `Image filename: ${order.image.fileName}` : "",
+      `${baseUrl}${order.image.urlPath}` : "None"}`,
     ]
       .filter(Boolean)
       .join("\n");
