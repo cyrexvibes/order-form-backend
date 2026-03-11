@@ -114,7 +114,7 @@ async function sendAdminEmail(order) {
       `Style2: ${order.style2 || ""}`,
       "",
       "Gallery images:",
-      ...(toArray(order.gallery).map((f) => ${baseUrl}${f})),
+      ...(toArray(order.gallery).map((f) => `${baseUrl}${f}`)),
       "",
       "Fabrics images:",
       ...(toArray(order.fabrics).map((f) => `${baseUrl}${f}`)),
