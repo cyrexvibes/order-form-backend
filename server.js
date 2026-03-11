@@ -120,7 +120,7 @@ async function sendAdminEmail(order) {
       `${order.description || ""}`,
       "",
       `Image uploaded: ${order.image ? "Yes" : "No"}`,
-      `${baseUrl}${order.image.urlPath}` : "None"}`,
+`${baseUrl}${order.image ? order.image.urlPath : "None"}`
     ]
       .filter(Boolean)
       .join("\n");
