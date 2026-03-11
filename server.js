@@ -119,9 +119,10 @@ async function sendAdminEmail(order) {
       "Description:",
       `${order.description || ""}`,
       "",
-      `Image uploaded: ${order.image ? "Yes" : "No"}`,
-`${baseUrl}${order.image ? order.image.urlPath : "None"}`
-    ]
+      const imageLink = order.image
+  ? `${baseUrl}${order.image.urlPath}`
+  : "No image uploaded";
+   
       .filter(Boolean)
       .join("\n");
 
