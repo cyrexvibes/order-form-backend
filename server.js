@@ -125,11 +125,11 @@ async function sendAdminEmail(order) {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: 'Bearer ${process.env.RESEND_API_KEY}',
+        Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
       },
       body: JSON.stringify({
         from: "Orders-onboarding@resend.dev",
-        to: "mosesbenjamin1985@gmail.com",
+        to: adminEmail,
         subject: `New order form submission: ${order.name || "Unknown"}`,
         text,
       }),
