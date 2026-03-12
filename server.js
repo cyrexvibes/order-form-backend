@@ -175,8 +175,8 @@ app.post("/submit-order",
 
       // Uploaded files
       const imageFile = req.files?.image?.[0] || null;
-      const galleryFilesUploaded = (req.files?.gallery || []).map(f => /uploads/${f.filename});
-      const fabricsFilesUploaded = (req.files?.fabrics || []).map(f => /uploads/${f.filename});
+      const galleryFilesUploaded = (req.files?.gallery || []).map(f => `/uploads/${f.filename}`);
+      const fabricsFilesUploaded = (req.files?.fabrics || []).map(f => `/uploads/${f.filename}`);
 
       // Selections from frontend (hidden inputs)
       const gallerySelections = toArray(req.body.gallery);
@@ -187,7 +187,7 @@ app.post("/submit-order",
       const allFabrics = [...fabricsFilesUploaded, ...fabricsSelections];
 
       const order = {
-        id: ord_${Date.now()}_${Math.round(Math.random() * 1e9)},
+        id: `ord_${Date.now()}_${Math.round(Math.random() * 1e9)}`,
         name: name ?? "",
         email: email ?? "",
         measurement: measurement ?? "",
@@ -203,7 +203,7 @@ app.post("/submit-order",
               fileName: imageFile.filename,
               mimeType: imageFile.mimetype,
               size: imageFile.size,
-              urlPath: /uploads/${imageFile.filename}, // fixed typo here
+              urlPath: `/uploads/${imageFile.filename}`, // fixed typo here
             }
           : null,
         createdAt: new Date().toISOString(),
