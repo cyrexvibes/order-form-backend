@@ -154,8 +154,7 @@ async function sendAdminEmail(order) {
 }
 
 // Order submission endpoint
-app.post(
-  "/submit-order",
+app.post("/submit-order",
   upload.fields([
     { name: "image", maxCount: 1 },
     { name: "gallery", maxCount: 10 },
