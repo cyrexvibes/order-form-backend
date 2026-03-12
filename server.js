@@ -154,7 +154,14 @@ async function sendAdminEmail(order) {
 }
 
 // Order submission endpoint
-app.post("/submit-order", upload.single("image"), async (req, res) => {
+app.post(
+  "/submit-order",
+  upload.fields([
+    { name: "image", maxCount: 1 },
+    { name: "gallery", maxCount: 10 },
+    { name: "fabrics", maxCount: 10 },
+  ]),
+  async (req, res) => {
   try {
     const {
       name,
@@ -168,24 +175,29 @@ app.post("/submit-order", upload.single("image"), async (req, res) => {
       style2,
     } = req.body;
 
-    const file = req.file || null;
-    const order = {
-      id: `ord_${Date.now()}_${Math.round(Math.random() * 1e9)}`,
-      name: name ?? "",
-      email: email ?? "",
-      measurement: measurement ?? "",
-      gallery: toArray(gallery),
-      design: design ?? "",
-      fabrics: toArray(fabrics),
-      description: description ?? "",
-      style1: style1 ?? "",
-      style2: style2 ?? "",
-      image: file
-        ? {
-            originalName: file.originalname,
-            fileName: file.filename,
-            mimeType: file.mimetype,
-            size: file.size,
+  const imageFile = req.files?.image?.[0] || null;
+const galleryFiles = req.files?.gallery || [];
+const fabricsFiles = req.files?.fabrics || [];
+   const order = {
+  id: `ord_${Date.now()}_${Math.round(Math.random() * 1e9)}`,
+  name: name ?? "",
+  email: email ?? "",
+  measurement: measurement ?? "",
+  design: design ?? "",
+
+  gallery: galleryFiles.map((f) => `/uploads/${f.filename}`),
+  fabrics: fabricsFiles.map((f) => `/uploads/${f.filename}` ),
+
+  description: description ?? "",
+  style1: style1 ?? "",
+  style2: style2 ?? "",
+
+  image: imageFile
+    ? {
+            originalName: imagefile.originalname,
+            fileName: imagefile.filename,
+            mimeType: imagefile.mimetype,
+            size: imagefile.size,
             urlPath: `/uploads/${file.filename}`,
           }
         : null,
