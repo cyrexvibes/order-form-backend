@@ -194,11 +194,11 @@ const fabricsFiles = req.files?.fabrics || [];
 
   image: imageFile
     ? {
-            originalName: imagefile.originalname,
-            fileName: imagefile.filename,
-            mimeType: imagefile.mimetype,
-            size: imagefile.size,
-            urlPath: `/uploads/${file.filename}`,
+            originalName: imageFile.originalname,
+            fileName: imageFile.filename,
+            mimeType: imageFile.mimetype,
+            size: imageFile.size,
+            urlPath: `/uploads/${imagaFile.filename}`,
           }
         : null,
       createdAt: new Date().toISOString(),
