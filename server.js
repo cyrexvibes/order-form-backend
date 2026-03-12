@@ -153,7 +153,6 @@ async function sendAdminEmail(order) {
   }
 }
 
-// Order submission endpoint
 app.post("/submit-order",
   upload.fields([
     { name: "image", maxCount: 1 },
@@ -161,67 +160,74 @@ app.post("/submit-order",
     { name: "fabrics", maxCount: 10 },
   ]),
   async (req, res) => {
-  try {
-    const {
-      name,
-      email,
-      measurement,
-      gallery,
-      design,
-      fabrics,
-      description,
-      style1,
-      style2,
-    } = req.body;
+    try {
+      const {
+        name,
+        email,
+        measurement,
+        gallery,
+        design,
+        fabrics,
+        description,
+        style1,
+        style2,
+      } = req.body;
 
-  const imageFile = req.files?.image?.[0] || null;
-const galleryFiles = req.files?.gallery || [];
-const fabricsFiles = req.files?.fabrics || [];
-   const order = {
-  id: `ord_${Date.now()}_${Math.round(Math.random() * 1e9)}`,
-  name: name ?? "",
-  email: email ?? "",
-  measurement: measurement ?? "",
-  design: design ?? "",
+      // Uploaded files
+      const imageFile = req.files?.image?.[0] || null;
+      const galleryFilesUploaded = (req.files?.gallery || []).map(f => /uploads/${f.filename});
+      const fabricsFilesUploaded = (req.files?.fabrics || []).map(f => /uploads/${f.filename});
 
-  gallery: galleryFiles.map((f) => `/uploads/${f.filename}`),
-  fabrics: fabricsFiles.map((f) => `/uploads/${f.filename}` ),
+      // Selections from frontend (hidden inputs)
+      const gallerySelections = toArray(req.body.gallery);
+      const fabricsSelections = toArray(req.body.fabrics);
 
-  description: description ?? "",
-  style1: style1 ?? "",
-  style2: style2 ?? "",
+      // Combine uploaded + selected files
+      const allGallery = [...galleryFilesUploaded, ...gallerySelections];
+      const allFabrics = [...fabricsFilesUploaded, ...fabricsSelections];
 
-  image: imageFile
-    ? {
-            originalName: imageFile.originalname,
-            fileName: imageFile.filename,
-            mimeType: imageFile.mimetype,
-            size: imageFile.size,
-            urlPath: `/uploads/${imageFile.filename}`,
-          }
-        : null,
-      createdAt: new Date().toISOString(),
-    };
+      const order = {
+        id: ord_${Date.now()}_${Math.round(Math.random() * 1e9)},
+        name: name ?? "",
+        email: email ?? "",
+        measurement: measurement ?? "",
+        design: design ?? "",
+        gallery: allGallery,
+        fabrics: allFabrics,
+        description: description ?? "",
+        style1: style1 ?? "",
+        style2: style2 ?? "",
+        image: imageFile
+          ? {
+              originalName: imageFile.originalname,
+              fileName: imageFile.filename,
+              mimeType: imageFile.mimetype,
+              size: imageFile.size,
+              urlPath: /uploads/${imageFile.filename}, // fixed typo here
+            }
+          : null,
+        createdAt: new Date().toISOString(),
+      };
 
-    // Save order immediately (fast)
-    const orders = await readOrders();
-    orders.push(order);
-    await writeOrders(orders);
+      // Save order
+      const orders = await readOrders();
+      orders.push(order);
+      await writeOrders(orders);
 
-    // Send email in the background (does not block submission — 3x faster)
-    sendAdminEmail(order).catch((emailErr) => {
-      console.error("Email send failed:", emailErr?.message || emailErr);
-    });
+      // Send email in the background
+      sendAdminEmail(order).catch((emailErr) => {
+        console.error("Email send failed:", emailErr?.message || emailErr);
+      });
 
-    res.status(200).json({ success: true, orderId: order.id });
-  } catch (err) {
-    console.error("Submission failed:", err);
-    const message =
-      err && err.message ? err.message : "Server error processing submission";
-    res.status(500).json({ success: false, message });
+      res.status(200).json({ success: true, orderId: order.id });
+    } catch (err) {
+      console.error("Submission failed:", err);
+      const message =
+        err && err.message ? err.message : "Server error processing submission";
+      res.status(500).json({ success: false, message });
+    }
   }
-});
-
+);
 app.listen(PORT, () => {
   console.log(`Backend running on port ${PORT}`);
 });
