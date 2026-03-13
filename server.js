@@ -182,7 +182,7 @@ app.post(
       );
 
       const fabricsUploaded = (req.files?.fabrics || []).map(
-        (f) => /uploads/${f.filename}
+        (f) => `/uploads/${f.filename}`
       );
 
       const gallerySelections = toArray(req.body.gallery);
