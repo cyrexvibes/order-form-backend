@@ -44,6 +44,13 @@ app.use("/uploads", express.static(UPLOADS_DIR));
 app.get("/health", (_req, res) => {
   res.status(200).json({ ok: true });
 });
+// ADD THESE TWO LINES
+app.use("/images", express.static(path.join(__dirname, "images")));
+app.use("/img", express.static(path.join(__dirname, "img")));
+
+app.get("/health", (_req, res) => {
+  res.status(200).json({ ok: true });
+});
 
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => cb(null, UPLOADS_DIR),
