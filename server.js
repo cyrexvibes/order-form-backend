@@ -108,11 +108,7 @@ async function sendAdminEmail(order) {
     const fabricLinks = toArray(order.fabrics)
   .map((f) => `${baseUrl}${f}`)
   .join("\n");
-
-    const fabricLinks = toArray(order.fabrics)
-      .map((f) => `${baseUrl}${f}`)
-      .join("\n");
-
+    
     const text = `
 New fashion design submission
 
