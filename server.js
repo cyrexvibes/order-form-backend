@@ -101,13 +101,13 @@ async function sendAdminEmail(order) {
   try {
     const adminEmail = process.env.ADMIN_EMAIL;
 
-    const imageLink = order.image
-      ? `${baseUrl}${order.image.urlPath}`
-      : "No image uploaded";
+  const galleryLinks = toArray(order.gallery)
+  .map((f) => `${baseUrl}${f}`)
+  .join("\n");
 
-    const galleryLinks = toArray(order.gallery)
-      .map((f) => `${baseUrl}${f}`)
-      .join("\n");
+    const fabricLinks = toArray(order.fabrics)
+  .map((f) => `${baseUrl}${f}`)
+  .join("\n");
 
     const fabricLinks = toArray(order.fabrics)
       .map((f) => `${baseUrl}${f}`)
