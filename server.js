@@ -7,14 +7,12 @@ const cors = require("cors");
 
 try {
   require("dotenv").config();
-} catch {}
+} catch (e) {}
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
 
-const baseUrl =
-  process.env.BASE_URL ||
-  "https://order-form-backend-cm2i.onrender.com";
+const baseUrl = process.env.BASE_URL || "https://order-form-backend-cm2i.onrender.com";
 
 const DATA_DIR = path.join(__dirname, "data");
 const UPLOADS_DIR = path.join(__dirname, "uploads");
@@ -29,22 +27,11 @@ function ensureDir(dirPath) {
 ensureDir(DATA_DIR);
 ensureDir(UPLOADS_DIR);
 
-app.use(
-  cors({
-    origin: true,
-    credentials: false,
-  })
-);
-
+app.use(cors({ origin: true, credentials: false }));
 app.use(express.json({ limit: "2mb" }));
 app.use(express.urlencoded({ extended: true }));
 
 app.use("/uploads", express.static(UPLOADS_DIR));
-
-app.get("/health", (_req, res) => {
-  res.status(200).json({ ok: true });
-});
-// ADD THESE TWO LINES
 app.use("/images", express.static(path.join(__dirname, "images")));
 app.use("/img", express.static(path.join(__dirname, "img")));
 
@@ -55,15 +42,10 @@ app.get("/health", (_req, res) => {
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => cb(null, UPLOADS_DIR),
   filename: (_req, file, cb) => {
-    const safeBase = path
-      .basename(file.originalname)
-      .replace(/[^\w.\- ]+/g, "")
-      .replace(/\s+/g, "-");
-
+    const safeBase = path.basename(file.originalname).replace(/[^\w.\- ]+/g, "").replace(/\s+/g, "-");
     const ext = path.extname(safeBase) || "";
     const base = ext ? safeBase.slice(0, -ext.length) : safeBase;
-    const unique =  `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
-
+    const unique = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
     cb(null, `${file.fieldname}-${base || "upload"}-${unique}${ext}`);
   },
 });
@@ -72,12 +54,7 @@ const upload = multer({
   storage,
   limits: { fileSize: 20 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
-    const ok =
-      file.mimetype === "image/jpeg" ||
-      file.mimetype === "image/png" ||
-      file.mimetype === "image/webp" ||
-      file.mimetype === "image/gif";
-
+    const ok = ["image/jpeg", "image/png", "image/webp", "image/gif"].includes(file.mimetype);
     cb(ok ? null : new Error("Only image uploads allowed"), ok);
   },
 });
@@ -88,7 +65,7 @@ async function readOrders() {
   try {
     const data = await fs.readFile(ORDERS_FILE, "utf-8");
     return JSON.parse(data);
-  } catch {
+  } catch (e) {
     return [];
   }
 }
@@ -100,37 +77,33 @@ async function writeOrders(orders) {
 async function sendAdminEmail(order) {
   try {
     const adminEmail = process.env.ADMIN_EMAIL;
-const galleryLinks = toArray(order.gallery)
-  .filter(f => f && f.trim() !== "") // IGNORE EMPTY STRINGS
-  .map((f) => {
-    if (f.startsWith("/uploads/")) return `${baseUrl}${f}`;
-    
-    // Check if the filename already has an extension (like .jpg or .png)
-    const hasExtension = f.includes(".");
-    return hasExtension ? `${baseUrl}/images/${f}` : `${baseUrl}/images/${f}.jpeg`;
-  })
-  .join("\n");
+    const resendApiKey = process.env.RESEND_API_KEY;
 
-const fabricLinks = toArray(order.fabrics)
-  .filter(f => f && f.trim() !== "") // IGNORE EMPTY STRINGS
-  .map((f) => {
-    if (f.startsWith("/uploads/")) return `${baseUrl}${f}`;
-    
-    const hasExtension = f.includes(".");
-    return hasExtension ? `${baseUrl}/images/${f}` : `${baseUrl}/images/${f}.jpeg`;
-  })
-  .join("\n");
-    
-‎const imageLink = order.image
-‎  ? `${baseUrl}${order.image.urlPath}`
-‎  : "No image uploaded"; 
+    const galleryLinks = toArray(order.gallery)
+      .filter(f => f && typeof f === 'string' && f.trim() !== "")
+      .map((f) => {
+        if (f.startsWith("/uploads/")) return `${baseUrl}${f}`;
+        const hasExt = f.includes(".");
+        return hasExt ? `${baseUrl}/images/${f}` : `${baseUrl}/images/${f}.jpeg`;
+      })
+      .join("\n");
+
+    const fabricLinks = toArray(order.fabrics)
+      .filter(f => f && typeof f === 'string' && f.trim() !== "")
+      .map((f) => {
+        if (f.startsWith("/uploads/")) return `${baseUrl}${f}`;
+        const hasExt = f.includes(".");
+        return hasExt ? `${baseUrl}/images/${f}` : `${baseUrl}/images/${f}.jpeg`;
+      })
+      .join("\n");
+
+    const imageLink = order.image ? `${baseUrl}${order.image.urlPath}` : "No image uploaded";
+
     const text = `
 New fashion design submission
-
 Name: ${order.name || ""}
 Email: ${order.email || ""}
 Measurement: ${order.measurement || ""}
-
 Design: ${order.design || ""}
 Style1: ${order.style1 || ""}
 Style2: ${order.style2 || ""}
@@ -152,7 +125,7 @@ ${order.description || ""}
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+        "Authorization": `Bearer ${resendApiKey}`,
       },
       body: JSON.stringify({
         from: "Orders <onboarding@resend.dev>",
@@ -162,96 +135,48 @@ ${order.description || ""}
       }),
     });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(errorText);
-    }
-
-    return { sent: true };
+    return { sent: response.ok };
   } catch (err) {
     console.error("Email failed:", err);
     return { sent: false };
   }
 }
 
-app.post(
-  "/submit-order",
-  upload.fields([
-    { name: "image", maxCount: 1 },
-    { name: "gallery", maxCount: 10 },
-    { name: "fabrics", maxCount: 10 },
-  ]),
-  async (req, res) => {
-    try {
-      const {
-        name,
-        email,
-        measurement,
-        design,
-        description,
-        style1,
-        style2,
-      } = req.body;
+app.post("/submit-order", upload.fields([
+  { name: "image", maxCount: 1 },
+  { name: "gallery", maxCount: 10 },
+  { name: "fabrics", maxCount: 10 },
+]), async (req, res) => {
+  try {
+    const { name, email, measurement, design, description, style1, style2 } = req.body;
+    const imageFile = req.files?.image?.[0] || null;
 
-      const imageFile = req.files?.image?.[0] || null;
+    const galleryUploaded = (req.files?.gallery || []).map(f => `/uploads/${f.filename}`);
+    const fabricsUploaded = (req.files?.fabrics || []).map(f => `/uploads/${f.filename}`);
 
-      const galleryUploaded = (req.files?.gallery || []).map(
-        (f) => `/uploads/${f.filename}`
-      );
+    const allGallery = [...galleryUploaded, ...toArray(req.body.gallery)];
+    const allFabrics = [...fabricsUploaded, ...toArray(req.body.fabrics)];
 
-      const fabricsUploaded = (req.files?.fabrics || []).map(
-        (f) => `/uploads/${f.filename}`
-      );
+    const order = {
+      id: `ord_${Date.now()}_${Math.round(Math.random() * 1e9)}`,
+      name, email, measurement, design, description, style1, style2,
+      gallery: allGallery,
+      fabrics: allFabrics,
+      image: imageFile ? { urlPath: `/uploads/${imageFile.filename}` } : null,
+      createdAt: new Date().toISOString(),
+    };
 
-      const gallerySelections = toArray(req.body.gallery);
-      const fabricsSelections = toArray(req.body.fabrics);
+    const orders = await readOrders();
+    orders.push(order);
+    await writeOrders(orders);
 
-      const allGallery = [...galleryUploaded, ...gallerySelections];
-      const allFabrics = [...fabricsUploaded, ...fabricsSelections];
-
-      const order = {
-        id: `ord_${Date.now()}_${Math.round(Math.random() * 1e9)}`,
-        name: name || "",
-        email: email || "",
-        measurement: measurement || "",
-        design: design || "",
-        gallery: allGallery,
-        fabrics: allFabrics,
-        description: description || "",
-        style1: style1 || "",
-        style2: style2 || "",
-        image: imageFile
-          ? {
-              originalName: imageFile.originalname,
-              fileName: imageFile.filename,
-              mimeType: imageFile.mimetype,
-              size: imageFile.size,
-              urlPath: `/uploads/${imageFile.filename}`,
-            }
-          : null,
-        createdAt: new Date().toISOString(),
-      };
-
-      const orders = await readOrders();
-      orders.push(order);
-      await writeOrders(orders);
-
-      sendAdminEmail(order);
-
-      res.status(200).json({
-        success: true,
-        orderId: order.id,
-      });
-    } catch (err) {
-      console.error("Submission error:", err);
-
-      res.status(500).json({
-        success: false,
-        message: "Server error",
-      });
-    }
+    sendAdminEmail(order);
+    res.status(200).json({ success: true, orderId: order.id });
+  } catch (err) {
+    console.error("Submission error:", err);
+    res.status(500).json({ success: false });
   }
-);
+});
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
