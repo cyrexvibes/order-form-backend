@@ -101,12 +101,18 @@ async function sendAdminEmail(order) {
   try {
     const adminEmail = process.env.ADMIN_EMAIL;
 
-  const galleryLinks = toArray(order.gallery)
-  .map((f) => `${baseUrl}${f}`)
+const galleryLinks = toArray(order.gallery)
+  .map((f) => {
+    if (f.startsWith("/uploads/")) return `${baseUrl}${f}`;
+    return `${baseUrl}/images/${f}.jpg`;
+  })
   .join("\n");
 
-    const fabricLinks = toArray(order.fabrics)
-  .map((f) => `${baseUrl}${f}`)
+const fabricLinks = toArray(order.fabrics)
+  .map((f) => {
+    if (f.startsWith("/uploads/")) return `${baseUrl}${f}`;
+    return `${baseUrl}/images/${f}.jpg`;
+  })
   .join("\n");
     
     const text = `
