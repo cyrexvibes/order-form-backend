@@ -107,7 +107,7 @@ const galleryLinks = toArray(order.gallery)
     
     // Check if the filename already has an extension (like .jpg or .png)
     const hasExtension = f.includes(".");
-    return hasExtension ? `${baseUrl}/images/${f} : ${baseUrl}/images/${f}.jpeg`;
+    return hasExtension ? `${baseUrl}/images/${f}` : `${baseUrl}/images/${f}.jpeg`;
   })
   .join("\n");
 
