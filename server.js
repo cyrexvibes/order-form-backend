@@ -107,6 +107,9 @@ const galleryLinks = toArray(order.gallery)
     return `${baseUrl}/images/${f}.jpg`;
   })
   .join("\n");
+const imageLink = order.image
+  ? `${baseUrl}${order.image.urlPath}`
+  : "No image uploaded";
 
 const fabricLinks = toArray(order.fabrics)
   .map((f) => {
