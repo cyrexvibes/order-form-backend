@@ -120,12 +120,10 @@ const fabricLinks = toArray(order.fabrics)
     return hasExtension ? `${baseUrl}/images/${f}` : `${baseUrl}/images/${f}.jpeg`;
   })
   .join("\n");
-
-‎ 
+    
 ‎const imageLink = order.image
 ‎  ? `${baseUrl}${order.image.urlPath}`
-‎  : "No image uploaded";
-    
+‎  : "No image uploaded"; 
     const text = `
 New fashion design submission
 
