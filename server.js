@@ -123,7 +123,7 @@ const imageLink = order.image
   ? `${baseUrl}${order.image.urlPath}`
   : "No image uploaded";
 
-const fabricLinks = toArray(order.gallery)
+const fabricLinks = toArray(order.fabrics)
   .map(f => {
     if (f.startsWith("/uploads/")) return `${baseUrl}${f}`;
 
