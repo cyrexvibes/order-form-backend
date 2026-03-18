@@ -100,23 +100,31 @@ async function writeOrders(orders) {
 async function sendAdminEmail(order) {
   try {
     const adminEmail = process.env.ADMIN_EMAIL;
-
 const galleryLinks = toArray(order.gallery)
-‎  .map((f) => {
-‎    if (f.startsWith("/uploads/")) return `${baseUrl}${f}`;
-‎    return `${baseUrl}/images/${f}.jpeg`;
-‎  })
-‎  .join("\n");
+  .filter(f => f && f.trim() !== "") // IGNORE EMPTY STRINGS
+  .map((f) => {
+    if (f.startsWith("/uploads/")) return `${baseUrl}${f}`;
+    
+    // Check if the filename already has an extension (like .jpg or .png)
+    const hasExtension = f.includes(".");
+    return hasExtension ? `${baseUrl}/images/${f} : ${baseUrl}/images/${f}.jpeg`;
+  })
+  .join("\n");
+
+const fabricLinks = toArray(order.fabrics)
+  .filter(f => f && f.trim() !== "") // IGNORE EMPTY STRINGS
+  .map((f) => {
+    if (f.startsWith("/uploads/")) return `${baseUrl}${f}`;
+    
+    const hasExtension = f.includes(".");
+    return hasExtension ? `${baseUrl}/images/${f}` : `${baseUrl}/images/${f}.jpeg`;
+  })
+  .join("\n");
+
+‎ 
 ‎const imageLink = order.image
 ‎  ? `${baseUrl}${order.image.urlPath}`
 ‎  : "No image uploaded";
-‎
-‎const fabricLinks = toArray(order.fabrics)
-‎  .map((f) => {
-‎    if (f.startsWith("/uploads/")) return `${baseUrl}${f}`;
-‎    return `${baseUrl}/images/${f}.jpeg`;
-‎  })
-‎  .join("\n");
     
     const text = `
 New fashion design submission
