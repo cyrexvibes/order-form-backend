@@ -102,19 +102,43 @@ async function sendAdminEmail(order) {
     const adminEmail = process.env.ADMIN_EMAIL;
 
 const galleryLinks = toArray(order.gallery)
-  .map((f) => {
+  .map(f => {
     if (f.startsWith("/uploads/")) return `${baseUrl}${f}`;
-    return `${baseUrl}/images/${f}.jpeg`;
+
+    // Check if file exists in /images
+    if (fssync.existsSync(path.join(__dirname, "images", f + ".jpeg"))) {
+      return `${baseUrl}/images/${f}`.jpeg;
+    } 
+    // Otherwise fallback to /img
+    else if (fssync.existsSync(path.join(__dirname, "img", f + ".jpeg"))) {
+      return `${baseUrl}/img/${f}.jpeg`;
+    } 
+    // If not found anywhere, just return original name as a fail-safe
+    else {
+      return `${baseUrl}/images/${f}.jpeg`;
+    }
   })
   .join("\n");
 const imageLink = order.image
   ? `${baseUrl}${order.image.urlPath}`
   : "No image uploaded";
 
-const fabricLinks = toArray(order.fabrics)
-  .map((f) => {
+const fabricLinks = toArray(order.gallery)
+  .map(f => {
     if (f.startsWith("/uploads/")) return `${baseUrl}${f}`;
-    return `${baseUrl}/images/${f}.jpeg`;
+
+    // Check if file exists in /images
+    if (fssync.existsSync(path.join(__dirname, "images", f + ".jpeg"))) {
+      return `${baseUrl}/images/${f}`.jpeg;
+    } 
+    // Otherwise fallback to /img
+    else if (fssync.existsSync(path.join(__dirname, "img", f + ".jpeg"))) {
+      return `${baseUrl}/img/${f}`.jpeg;
+    } 
+    // If not found anywhere, just return original name as a fail-safe
+    else {
+      return `${baseUrl}/images/${f}`.jpeg;
+    }
   })
   .join("\n");
     
