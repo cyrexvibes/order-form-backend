@@ -104,7 +104,7 @@ async function sendAdminEmail(order) {
 const galleryLinks = toArray(order.gallery)
   .map((f) => {
     if (f.startsWith("/uploads/")) return `${baseUrl}${f}`;
-    return `${baseUrl}/images/${f}.jpg`;
+    return `${baseUrl}/images/${f}.jpeg`;
   })
   .join("\n");
 const imageLink = order.image
@@ -114,7 +114,7 @@ const imageLink = order.image
 const fabricLinks = toArray(order.fabrics)
   .map((f) => {
     if (f.startsWith("/uploads/")) return `${baseUrl}${f}`;
-    return `${baseUrl}/images/${f}.jpg`;
+    return `${baseUrl}/images/${f}.jpeg`;
   })
   .join("\n");
     
