@@ -44,7 +44,7 @@ async function sendAdminEmail(order) {
     const fabricLinks = buildLinks(order.fabrics);
     const imageLink = order.image ? `${baseUrl}${order.image.urlPath}` : "No image";
 
-    const text = `New submission\nName: ${order.name}\nGallery:\n${galleryLinks}\nFabrics:\n${fabricLinks}\nUpload: ${imageLink}`;
+    const text = `New submission\n\nName: ${order.name}\nEmail: ${order.email}\n\nGallery:\n${galleryLinks || "None"}\n\nFabrics:\n${fabricLinks || "None"}\n\nUpload: ${imageLink}`;
 
     await fetch("https://api.resend.com/emails", {
       method: "POST",
@@ -52,11 +52,11 @@ async function sendAdminEmail(order) {
       body: JSON.stringify({
         from: "Orders <onboarding@resend.dev>",
         to: adminEmail,
-        subject: Order: `${order.name}`,
-        text
+        subject: `Order from ${order.name}`,
+        text: text
       })
     });
-  } catch (err) { console.error(err); }
+  } catch (err) { console.error("Email Error:", err); }
 }
 
 const upload = multer({ storage: multer.diskStorage({
@@ -71,8 +71,9 @@ app.post("/submit-order", upload.fields([{name:"image"},{name:"gallery"},{name:"
     const parse = (val) => typeof val === 'string' ? val.split(',').filter(s => s.trim()) : toArray(val);
     
     const order = {
-      id: Date.now(),
-      name,
+      id: `ord_${Date.now()}`,
+      name: name || "Customer",
+      email: email || "",
       gallery: [...(req.files?.gallery||[]).map(f=>`/uploads/${f.filename}`), ...parse(gallery)],
       fabrics: [...(req.files?.fabrics||[]).map(f=>`/uploads/${f.filename}`), ...parse(fabrics)],
       image: req.files?.image ? { urlPath: `/uploads/${req.files.image[0].filename}` } : null
@@ -81,11 +82,14 @@ app.post("/submit-order", upload.fields([{name:"image"},{name:"gallery"},{name:"
     const data = await fs.readFile(ORDERS_FILE, "utf-8").catch(()=>"[]");
     const orders = JSON.parse(data);
     orders.push(order);
-    await fs.writeFile(ORDERS_FILE, JSON.stringify(orders));
+    await fs.writeFile(ORDERS_FILE, JSON.stringify(orders, null, 2));
 
     sendAdminEmail(order);
-    res.json({ success: true });
-  } catch (err) { res.status(500).json({ success: false }); }
+    res.json({ success: true, orderID: order.id });
+  } catch (err) { 
+    console.error("Submit Error:", err);
+    res.status(500).json({ success: false }); 
+  }
 });
 
-app.listen(PORT, () => console.log("Live"));
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
