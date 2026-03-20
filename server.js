@@ -37,7 +37,7 @@ async function sendAdminEmail(order) {
 
     const buildLinks = (arr) => toArray(arr)
       .filter(f => f && typeof f === 'string' && f.trim() !== "")
-      .map(f => f.startsWith("/uploads/") ? `${baseUrl}${f} : ${baseUrl}/images/${f}`)
+      .map(f => f.startsWith("/uploads/") ? `${baseUrl}${f}` : `${baseUrl}/images/${f}`)
       .join("\n");
 
     const galleryLinks = buildLinks(order.gallery);
