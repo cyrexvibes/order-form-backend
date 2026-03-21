@@ -5,46 +5,45 @@ const fssync = require("fs");
 const multer = require("multer");
 const cors = require("cors");
 
-try {
-  require("dotenv").config();
-} catch (e) {}
+try { require("dotenv").config(); } catch (e) {}
 
 const app = express();
-const PORT = Number(process.env.PORT) || 3000;
-const baseUrl = process.env.BASE_URL || "https://order-form-backend-cm2i.onrender.com";
+const PORT = process.env.PORT || 3000;
+const baseUrl = "https://order-form-backend-cm2i.onrender.com";
 
-const DATA_DIR = path.join(__dirname, "data");
 const UPLOADS_DIR = path.join(__dirname, "uploads");
-const ORDERS_FILE = path.join(DATA_DIR, "orders.json");
+if (!fssync.existsSync(UPLOADS_DIR)) fssync.mkdirSync(UPLOADS_DIR, { recursive: true });
 
-function ensureDir(p) { if (!fssync.existsSync(p)) fssync.mkdirSync(p, { recursive: true }); }
-ensureDir(DATA_DIR);
-ensureDir(UPLOADS_DIR);
+app.use(cors());
+app.use(express.json({ limit: "50mb" }));
+app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
-app.use(cors({ origin: true }));
-app.use(express.json({ limit: "5mb" }));
-app.use(express.urlencoded({ extended: true }));
 app.use("/uploads", express.static(UPLOADS_DIR));
 app.use("/images", express.static(path.join(__dirname, "images")));
-app.use("/img", express.static(path.join(__dirname, "img")));
 
-const toArray = (v) => (v == null ? [] : Array.isArray(v) ? v : [v]);
+const upload = multer({
+  storage: multer.diskStorage({
+    destination: (req, file, cb) => cb(null, UPLOADS_DIR),
+    filename: (req, file, cb) => cb(null, Date.now() + "-" + file.originalname.replace(/\s+/g, "-"))
+  })
+});
 
 async function sendAdminEmail(order) {
   try {
-    const adminEmail = process.env.ADMIN_EMAIL;
     const resendKey = process.env.RESEND_API_KEY;
+    const adminEmail = process.env.ADMIN_EMAIL;
 
-    const buildLinks = (arr) => toArray(arr)
-      .filter(f => f && typeof f === 'string' && f.trim() !== "")
-      .map(f => f.startsWith("/uploads/") ? `${baseUrl}${f}` : `${baseUrl}/images/${f}`)
-      .join("\n");
+    const formatLinks = (input) => {
+      if (!input || input === "") return "None";
+      const items = typeof input === "string" ? input.split(",").filter(x => x.trim() !== "") : input;
+      return items.map(f => `${baseUrl}/images/${f}`).join("\n");
+    };
 
-    const galleryLinks = buildLinks(order.gallery);
-    const fabricLinks = buildLinks(order.fabrics);
-    const imageLink = order.image ? `${baseUrl}${order.image.urlPath}` : "No image";
+    const galleryText = formatLinks(order.gallery);
+    const fabricText = formatLinks(order.fabrics);
+    const uploadText = order.image ? `${baseUrl}${order.image}` : "No image uploaded";
 
-    const text = `New submission\n\nName: ${order.name}\nEmail: ${order.email}\n\nGallery:\n${galleryLinks || "None"}\n\nFabrics:\n${fabricLinks || "None"}\n\nUpload: ${imageLink}`;
+    const emailBody = `New Order Submission\n\nName: ${order.name}\nEmail: ${order.email}\n\nGallery:\n${galleryText}\n\nFabrics:\n${fabricText}\n\nUploaded Image:\n${uploadText}`;
 
     await fetch("https://api.resend.com/emails", {
       method: "POST",
@@ -52,44 +51,35 @@ async function sendAdminEmail(order) {
       body: JSON.stringify({
         from: "Orders <onboarding@resend.dev>",
         to: adminEmail,
-        subject: `Order from ${order.name}`,
-        text: text
+        subject: `New Order from ${order.name}`,
+        text: emailBody
       })
     });
-  } catch (err) { console.error("Email Error:", err); }
+    console.log("Email triggered.");
+  } catch (err) {
+    console.error("Email Error:", err);
+  }
 }
 
-const upload = multer({ storage: multer.diskStorage({
-  destination: (req, file, cb) => cb(null, UPLOADS_DIR),
-  filename: (req, file, cb) => cb(null, `${Date.now()}-${file.originalname}`)
-})});
-
-app.post("/submit-order", upload.fields([{name:"image"},{name:"gallery"},{name:"fabrics"}]), async (req, res) => {
+app.post("/submit-order", upload.fields([{ name: "image", maxCount: 1 }]), async (req, res) => {
   try {
     const { name, email, gallery, fabrics } = req.body;
     
-    const parse = (val) => typeof val === 'string' ? val.split(',').filter(s => s.trim()) : toArray(val);
-    
     const order = {
-      id: `ord_${Date.now()}`,
       name: name || "Customer",
-      email: email || "",
-      gallery: [...(req.files?.gallery||[]).map(f=>`/uploads/${f.filename}`), ...parse(gallery)],
-      fabrics: [...(req.files?.fabrics||[]).map(f=>`/uploads/${f.filename}`), ...parse(fabrics)],
-      image: req.files?.image ? { urlPath: `/uploads/${req.files.image[0].filename}` } : null
+      email: email || "No Email",
+      gallery: gallery || "", 
+      fabrics: fabrics || "",
+      image: req.files?.image ? `/uploads/${req.files.image[0].filename}` : null
     };
 
-    const data = await fs.readFile(ORDERS_FILE, "utf-8").catch(()=>"[]");
-    const orders = JSON.parse(data);
-    orders.push(order);
-    await fs.writeFile(ORDERS_FILE, JSON.stringify(orders, null, 2));
-
+    // This sends the email in the background
     sendAdminEmail(order);
-    res.json({ success: true, orderID: order.id });
-  } catch (err) { 
-    console.error("Submit Error:", err);
-    res.status(500).json({ success: false }); 
+
+    res.status(200).json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false });
   }
 });
 
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+app.listen(PORT, () => console.log("Live"));
