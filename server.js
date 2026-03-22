@@ -36,22 +36,22 @@ async function sendAdminEmail(order) {
     const formatLinks = (input) => {
       if (!input || input === "") return "None";
       const items = typeof input === "string" ? input.split(",").filter(x => x.trim() !== "") : input;
-      return items.map(f => `${baseUrl}/images/${f}`).join("\n");
+      return items.map(f => ${baseUrl}/images/${f}).join("\n");
     };
 
     const galleryText = formatLinks(order.gallery);
     const fabricText = formatLinks(order.fabrics);
-    const uploadText = order.image ? `${baseUrl}${order.image}` : "No image uploaded";
+    const uploadText = order.image ? ${baseUrl}${order.image} : "No image uploaded";
 
-    const emailBody = `New Order Submission\n\nName: ${order.name}\nEmail: ${order.email}\n\nGallery:\n${galleryText}\n\nFabrics:\n${fabricText}\n\nUploaded Image:\n${uploadText}`;
+    const emailBody = New Order Submission\n\nName: ${order.name}\nEmail: ${order.email}\n\nGallery:\n${galleryText}\n\nFabrics:\n${fabricText}\n\nUploaded Image:\n${uploadText};
 
     await fetch("https://api.resend.com/emails", {
       method: "POST",
-      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${resendKey}` },
+      headers: { "Content-Type": "application/json", "Authorization": Bearer ${resendKey} },
       body: JSON.stringify({
         from: "Orders <onboarding@resend.dev>",
         to: adminEmail,
-        subject: `New Order from ${order.name}`,
+        subject: New Order from ${order.name},
         text: emailBody
       })
     });
@@ -70,7 +70,7 @@ app.post("/submit-order", upload.fields([{ name: "image", maxCount: 1 }]), async
       email: email || "No Email",
       gallery: gallery || "", 
       fabrics: fabrics || "",
-      image: req.files?.image ? `/uploads/${req.files.image[0].filename}` : null
+      image: req.files?.image ? /uploads/${req.files.image[0].filename} : null
     };
 
     // This sends the email in the background
