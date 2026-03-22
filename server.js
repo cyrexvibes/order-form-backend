@@ -10,7 +10,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const baseUrl = "https://order-form-backend-cm2i.onrender.com";
 
-// 1. ABSOLUTE MAPPING (The Fix for 'Cannot GET')
+// 1. Setup Paths
 const UPLOADS_PATH = path.resolve(__dirname, "uploads");
 const IMAGES_PATH = path.resolve(__dirname, "images");
 const IMG_PATH = path.resolve(__dirname, "img");
@@ -19,7 +19,7 @@ app.use(cors());
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
-// This tells the server: "If the link says /images, look in BOTH folders"
+// 2. Link the folders to the URL
 app.use("/uploads", express.static(UPLOADS_PATH));
 app.use("/images", express.static(IMAGES_PATH));
 app.use("/images", express.static(IMG_PATH)); 
@@ -40,7 +40,6 @@ async function sendAdminEmail(order) {
     const formatLinks = (input) => {
       if (!input || input === "" || input === "None") return "None";
       const items = typeof input === "string" ? input.split(",").filter(x => x.trim() !== "") : input;
-      // Force all links to use the /images/ prefix which we mapped to both folders above
       return items.map(f => `${baseUrl}/images/${f.trim()}`).join("\n");
     };
 
@@ -54,7 +53,7 @@ async function sendAdminEmail(order) {
 
     await fetch("https://api.resend.com/emails", {
       method: "POST",
-      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${resendKey}`,
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${resendKey}` },
       body: JSON.stringify({
         from: "Orders <onboarding@resend.dev>",
         to: adminEmail,
@@ -62,7 +61,10 @@ async function sendAdminEmail(order) {
         text: emailBody
       })
     });
-  } catch (err) { console.error("Email Error:", err); }
+    console.log("Email sent successfully");
+  } catch (err) { 
+    console.error("Email Error:", err); 
+  }
 }
 
 app.post("/submit-order", upload.fields([{ name: "image", maxCount: 1 }]), async (req, res) => {
@@ -78,7 +80,9 @@ app.post("/submit-order", upload.fields([{ name: "image", maxCount: 1 }]), async
     };
     sendAdminEmail(order);
     res.status(200).json({ success: true });
-  } catch (err) { res.status(500).json({ success: false }); }
+  } catch (err) { 
+    res.status(500).json({ success: false }); 
+  }
 });
 
 app.listen(PORT, () => console.log("Final Server Live"));
