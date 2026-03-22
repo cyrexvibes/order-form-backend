@@ -1,6 +1,5 @@
 const express = require("express");
 const path = require("path");
-const fs = require("fs/promises");
 const fssync = require("fs");
 const multer = require("multer");
 const cors = require("cors");
@@ -11,15 +10,25 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const baseUrl = "https://order-form-backend-cm2i.onrender.com";
 
+// 1. LINK THE FOLDERS
 const UPLOADS_DIR = path.join(__dirname, "uploads");
-if (!fssync.existsSync(UPLOADS_DIR)) fssync.mkdirSync(UPLOADS_DIR, { recursive: true });
+const IMAGES_DIR = path.join(__dirname, "images");
+const IMG_DIR = path.join(__dirname, "img");
+
+// Make sure they exist so it doesn't crash
+[UPLOADS_DIR, IMAGES_DIR, IMG_DIR].forEach(dir => {
+  if (!fssync.existsSync(dir)) fssync.mkdirSync(dir, { recursive: true });
+});
 
 app.use(cors());
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
+// 2. OPEN THE DOORS TO YOUR IMAGES
 app.use("/uploads", express.static(UPLOADS_DIR));
-app.use("/images", express.static(path.join(__dirname, "images")));
+app.use("/images", express.static(IMAGES_DIR));
+app.use("/images", express.static(IMG_DIR)); // If it's not in 'images', it checks 'img'
+app.use("/img", express.static(IMG_DIR));
 
 const upload = multer({
   storage: multer.diskStorage({
@@ -34,16 +43,18 @@ async function sendAdminEmail(order) {
     const adminEmail = process.env.ADMIN_EMAIL;
 
     const formatLinks = (input) => {
-      if (!input || input === "") return "None";
+      if (!input || input === "" || input === "None") return "None";
       const items = typeof input === "string" ? input.split(",").filter(x => x.trim() !== "") : input;
-      return items.map(f => `${baseUrl}/images/${f}`).join("\n");
+      return items.map(f => `${baseUrl}/images/${f.trim()}`).join("\n");
     };
 
-    const galleryText = formatLinks(order.gallery);
-    const fabricText = formatLinks(order.fabrics);
-    const uploadText = order.image ? `${baseUrl}${order.image}` : "No image uploaded";
-
-    const emailBody = `New Order Submission\n\nName: ${order.name}\nEmail: ${order.email}\n\nGallery:\n${galleryText}\n\nFabrics:\n${fabricText}\n\nUploaded Image:\n${uploadText}`;
+    const emailBody = New Order Submission\n\n +
+      `Name: ${order.name}\n` +
+      `Email: ${order.email}\n` +
+      `Description: ${order.description}\n\n` + 
+      `Gallery Selections:\n${formatLinks(order.gallery)}\n\n` +
+      `Fabric Selections:\n${formatLinks(order.fabrics)}\n\n` +
+      `Manual Upload:\n${order.image ? baseUrl + order.image : "No image uploaded"}`;
 
     await fetch("https://api.resend.com/emails", {
       method: "POST",
@@ -51,35 +62,27 @@ async function sendAdminEmail(order) {
       body: JSON.stringify({
         from: "Orders <onboarding@resend.dev>",
         to: adminEmail,
-        subject: `New Order from ${order.name}`,
+        subject: `Order from ${order.name}`,
         text: emailBody
       })
     });
-    console.log("Email triggered.");
-  } catch (err) {
-    console.error("Email Error:", err);
-  }
+  } catch (err) { console.error("Email Error:", err); }
 }
 
 app.post("/submit-order", upload.fields([{ name: "image", maxCount: 1 }]), async (req, res) => {
   try {
-    const { name, email, gallery, fabrics } = req.body;
-    
+    const { name, email, gallery, fabrics, description } = req.body;
     const order = {
       name: name || "Customer",
       email: email || "No Email",
+      description: description || "No description provided",
       gallery: gallery || "", 
       fabrics: fabrics || "",
       image: req.files?.image ? `/uploads/${req.files.image[0].filename}` : null
     };
-
-    // This sends the email in the background
     sendAdminEmail(order);
-
     res.status(200).json({ success: true });
-  } catch (err) {
-    res.status(500).json({ success: false });
-  }
+  } catch (err) { res.status(500).json({ success: false }); }
 });
 
-app.listen(PORT, () => console.log("Live"));
+app.listen(PORT, () => console.log("Server Live"));
