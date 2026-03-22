@@ -10,29 +10,24 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const baseUrl = "https://order-form-backend-cm2i.onrender.com";
 
-// 1. LINK THE FOLDERS
-const UPLOADS_DIR = path.join(__dirname, "uploads");
-const IMAGES_DIR = path.join(__dirname, "images");
-const IMG_DIR = path.join(__dirname, "img");
-
-// Make sure they exist so it doesn't crash
-[UPLOADS_DIR, IMAGES_DIR, IMG_DIR].forEach(dir => {
-  if (!fssync.existsSync(dir)) fssync.mkdirSync(dir, { recursive: true });
-});
+// 1. ABSOLUTE MAPPING (The Fix for 'Cannot GET')
+const UPLOADS_PATH = path.resolve(__dirname, "uploads");
+const IMAGES_PATH = path.resolve(__dirname, "images");
+const IMG_PATH = path.resolve(__dirname, "img");
 
 app.use(cors());
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
-// 2. OPEN THE DOORS TO YOUR IMAGES
-app.use("/uploads", express.static(UPLOADS_DIR));
-app.use("/images", express.static(IMAGES_DIR));
-app.use("/images", express.static(IMG_DIR)); // If it's not in 'images', it checks 'img'
-app.use("/img", express.static(IMG_DIR));
+// This tells the server: "If the link says /images, look in BOTH folders"
+app.use("/uploads", express.static(UPLOADS_PATH));
+app.use("/images", express.static(IMAGES_PATH));
+app.use("/images", express.static(IMG_PATH)); 
+app.use("/img", express.static(IMG_PATH));
 
 const upload = multer({
   storage: multer.diskStorage({
-    destination: (req, file, cb) => cb(null, UPLOADS_DIR),
+    destination: (req, file, cb) => cb(null, UPLOADS_PATH),
     filename: (req, file, cb) => cb(null, Date.now() + "-" + file.originalname.replace(/\s+/g, "-"))
   })
 });
@@ -45,6 +40,7 @@ async function sendAdminEmail(order) {
     const formatLinks = (input) => {
       if (!input || input === "" || input === "None") return "None";
       const items = typeof input === "string" ? input.split(",").filter(x => x.trim() !== "") : input;
+      // Force all links to use the /images/ prefix which we mapped to both folders above
       return items.map(f => `${baseUrl}/images/${f.trim()}`).join("\n");
     };
 
@@ -58,7 +54,7 @@ async function sendAdminEmail(order) {
 
     await fetch("https://api.resend.com/emails", {
       method: "POST",
-      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${resendKey}` },
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${resendKey` },
       body: JSON.stringify({
         from: "Orders <onboarding@resend.dev>",
         to: adminEmail,
@@ -85,4 +81,4 @@ app.post("/submit-order", upload.fields([{ name: "image", maxCount: 1 }]), async
   } catch (err) { res.status(500).json({ success: false }); }
 });
 
-app.listen(PORT, () => console.log("Server Live"));
+app.listen(PORT, () => console.log("Final Server Live"));
