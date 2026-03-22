@@ -48,7 +48,7 @@ async function sendAdminEmail(order) {
       return items.map(f => `${baseUrl}/images/${f.trim()}`).join("\n");
     };
 
-    const emailBody = New Order Submission\n\n +
+    const emailBody = `New Order Submission\n\n` +
       `Name: ${order.name}\n` +
       `Email: ${order.email}\n` +
       `Description: ${order.description}\n\n` + 
