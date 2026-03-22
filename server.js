@@ -54,7 +54,7 @@ async function sendAdminEmail(order) {
 
     await fetch("https://api.resend.com/emails", {
       method: "POST",
-      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${resendKey` },
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${resendKey}`,
       body: JSON.stringify({
         from: "Orders <onboarding@resend.dev>",
         to: adminEmail,
