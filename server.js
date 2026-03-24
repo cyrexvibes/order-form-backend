@@ -47,6 +47,7 @@ async function sendAdminEmail(order) {
       `Name: ${order.name}\n` +
       `Email: ${order.email}\n` +
       `Description: ${order.description}\n\n` + 
+      `Measurments: ${order.measurements}\n\n` +
       `Gallery Selections:\n${formatLinks(order.gallery)}\n\n` +
       `Fabric Selections:\n${formatLinks(order.fabrics)}\n\n` +
       `Manual Upload:\n${order.image ? baseUrl + order.image : "No image uploaded"}`;
