@@ -75,6 +75,7 @@ app.post("/submit-order", upload.fields([{ name: "image", maxCount: 1 }]), async
       name: name || "Customer",
       email: email || "No Email",
       description: description || "No description provided",
+      Measurements: measurements || "No measurements provided",
       gallery: gallery || "", 
       fabrics: fabrics || "",
       image: req.files?.image ? `/uploads/${req.files.image[0].filename}` : null
