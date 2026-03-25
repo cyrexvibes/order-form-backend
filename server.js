@@ -29,7 +29,10 @@ const upload = multer({
   storage: multer.diskStorage({
     destination: (req, file, cb) => cb(null, UPLOADS_PATH),
     filename: (req, file, cb) => cb(null, Date.now() + "-" + file.originalname.replace(/\s+/g, "-"))
-  })
+  }),
+  imits: { 
+    fileSize: 10 * 1024 * 1024 // This is 10MB in bytes
+  }
 });
 
 async function sendAdminEmail(order) {
