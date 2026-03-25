@@ -30,7 +30,7 @@ const upload = multer({
     destination: (req, file, cb) => cb(null, UPLOADS_PATH),
     filename: (req, file, cb) => cb(null, Date.now() + "-" + file.originalname.replace(/\s+/g, "-"))
   }),
-  imits: { 
+  limits: { 
     fileSize: 10 * 1024 * 1024 // This is 10MB in bytes
   }
 });
@@ -73,12 +73,12 @@ async function sendAdminEmail(order) {
 
 app.post("/submit-order", upload.fields([{ name: "image", maxCount: 1 }]), async (req, res) => {
   try {
-    const { name, email, gallery, fabrics, description } = req.body;
+    const { name, email, gallery, fabrics, description, measurements } = req.body;
     const order = {
       name: name || "Customer",
       email: email || "No Email",
       description: description || "No description provided",
-      Measurements: measurements || "No measurements provided",
+      measurements: measurements || "No measurements provided",
       gallery: gallery || "", 
       fabrics: fabrics || "",
       image: req.files?.image ? `/uploads/${req.files.image[0].filename}` : null
