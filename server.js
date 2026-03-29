@@ -55,7 +55,7 @@ async function sendAdminEmail(order) {
     // --- FIX 2: MEASUREMENT VISIBILITY ---
     // Added clear labels so the email definitely shows the data
     const emailBody = `NEW ORDER SUBMISSION\n` +
-      --------------------------\n +
+      `--------------------------\n` +
       `Name: ${order.name}\n` +
       `Email: ${order.email}\n` +
       `Description: ${order.description}\n\n` + 
